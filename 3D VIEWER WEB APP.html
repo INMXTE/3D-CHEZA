@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Model Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            overflow: hidden;
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            color: #fff;
+            height: 100vh;
+        }
+        
+        #container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+        }
+        
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #file-upload {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            width: 300px;
+            max-width: calc(100% - 40px);
+            transition: all 0.3s ease;
+        }
+        
+        #drag-area {
+            border: 2px dashed rgba(255, 255, 255, 0.5);
+            border-radius: 8px;
+            padding: 20px 10px;
+            text-align: center;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        #drag-area.active {
+            border-color: #5cb85c;
+            background: rgba(92, 184, 92, 0.1);
+        }
+        
+        #drag-area i {
+            font-size: 32px;
+            margin-bottom: 10px;
+            display: block;
+        }
+        
+        #status {
+            margin: 10px 0;
+            font-size: 14px;
+            min-height: 20px;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            width: 300px;
+            max-width: calc(100% - 40px);
+            max-height: 60vh;
+            overflow-y: auto;
+            transition: all 0.3s ease;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        .control-group h3 {
+            margin-bottom: 10px;
+            font-size: 16px;
+            color: #8ecae6;
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .slider-container label {
+            flex: 0 0 120px;
+            font-size: 14px;
+        }
+        
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 5px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #555;
+            outline: none;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: #8ecae6;
+            cursor: pointer;
+        }
+        
+        .slider-container input[type="range"]::-moz-range-thumb {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: #8ecae6;
+            cursor: pointer;
+        }
+        
+        .slider-container input[type="range"]:hover {
+            background: #666;
+        }
+        
+        .slider-value {
+            width: 40px;
+            text-align: right;
+            margin-left: 10px;
+            font-size: 12px;
+        }
+        
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        button {
+            padding: 8px 12px;
+            background: #2a9d8f;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 13px;
+        }
+        
+        button:hover {
+            background: #1d7d70;
+        }
+        
+        button.active {
+            background: #e76f51;
+        }
+        
+        select {
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            color: white;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        
+        .color-picker {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .color-picker label {
+            flex: 0 0 120px;
+            font-size: 14px;
+        }
+        
+        .color-picker input[type="color"] {
+            background: none;
+            border: none;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        
+        #model-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            max-width: 300px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            display: none;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #8ecae6;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        
+        #help-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 110;
+            font-size: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        #help-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        
+        .modal-content {
+            background: #1e1e1e;
+            border-radius: 10px;
+            padding: 30px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+        
+        .modal-content h2 {
+            margin-bottom: 20px;
+            color: #8ecae6;
+        }
+        
+        .modal-content p {
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+        
+        .modal-content ul {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .modal-content li {
+            margin-bottom: 8px;
+        }
+        
+        .close-modal {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #ddd;
+            z-index: 1;
+        }
+        
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease-out;
+            z-index: 9999;
+            max-width: 300px;
+        }
+        
+        .notification.success {
+            background: #2a9d8f;
+        }
+        
+        .notification.error {
+            background: #e76f51;
+        }
+        
+        .notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        #toggle-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 101;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            font-size: 24px;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            #file-upload, #controls {
+                width: 250px;
+            }
+            
+            #model-info {
+                top: auto;
+                bottom: 80px;
+                right: 20px;
+                max-width: 200px;
+                font-size: 12px;
+            }
+            
+            .modal-content {
+                padding: 20px;
+                max-height: 70vh;
+            }
+            
+            #toggle-controls {
+                display: flex;
+            }
+            
+            #controls.hidden {
+                transform: translateX(-150%);
+            }
+            
+            .slider-container label, 
+            .color-picker label {
+                flex: 0 0 100px;
+                font-size: 13px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            #file-upload {
+                width: calc(100% - 40px);
+                top: 10px;
+                left: 20px;
+            }
+            
+            #help-button {
+                top: 10px;
+                right: 10px;
+            }
+            
+            #controls {
+                width: calc(100% - 40px);
+                max-height: 50vh;
+                transition: transform 0.3s ease;
+            }
+            
+            #drag-area {
+                padding: 15px 10px;
+            }
+            
+            #drag-area i {
+                font-size: 24px;
+            }
+            
+            .button-group button {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <div id="container"></div>
+    
+    <div id="file-upload">
+        <h2>3D Model Viewer</h2>
+        <div id="drag-area">
+            <i>📁</i>
+            <p>Drop 3D model file or click to browse</p>
+            <small>Supports: OBJ, STL, GLTF, GLB, PLY, FBX, 3MF, STEP</small>
+        </div>
+        <input type="file" id="file-input" style="display: none;" accept=".obj,.stl,.gltf,.glb,.ply,.fbx,.3mf,.step,.stp">
+        <div id="status"></div>
+    </div>
+    
+    <div id="controls">
+        <div class="control-group">
+            <h3>Lighting</h3>
+            <div class="slider-container">
+                <label>Ambient Light</label>
+                <input type="range" id="ambient-intensity" min="0" max="1" step="0.01" value="0.3">
+                <span class="slider-value">0.3</span>
+            </div>
+            <div class="slider-container">
+                <label>Direct Light</label>
+                <input type="range" id="directional-intensity" min="0" max="2" step="0.01" value="1">
+                <span class="slider-value">1.0</span>
+            </div>
+            <div class="color-picker">
+                <label>Light Color</label>
+                <input type="color" id="light-color" value="#ffffff">
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <h3>Material</h3>
+            <select id="material-type">
+                <option value="standard">Standard</option>
+                <option value="normal">Normal</option>
+                <option value="basic">Basic</option>
+                <option value="phong">Phong</option>
+                <option value="toon">Toon</option>
+                <option value="physical">Physical</option>
+                <option value="wireframe">Wireframe</option>
+            </select>
+            <div class="color-picker">
+                <label>Color</label>
+                <input type="color" id="material-color" value="#3498db">
+            </div>
+            <div class="slider-container">
+                <label>Metalness</label>
+                <input type="range" id="metalness" min="0" max="1" step="0.01" value="0.1">
+                <span class="slider-value">0.1</span>
+            </div>
+            <div class="slider-container">
+                <label>Roughness</label>
+                <input type="range" id="roughness" min="0" max="1" step="0.01" value="0.8">
+                <span class="slider-value">0.8</span>
+            </div>
+            <div class="slider-container">
+                <label>Opacity</label>
+                <input type="range" id="opacity" min="0" max="1" step="0.01" value="1">
+                <span class="slider-value">1.0</span>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <h3>Environment</h3>
+            <select id="environment">
+                <option value="studio">Studio</option>
+                <option value="sunset">Sunset</option>
+                <option value="dawn">Dawn</option>
+                <option value="night">Night</option>
+                <option value="neutral">Neutral</option>
+            </select>
+            <div class="slider-container">
+                <label>Env. Intensity</label>
+                <input type="range" id="env-intensity" min="0" max="2" step="0.01" value="1">
+                <span class="slider-value">1.0</span>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <h3>Camera</h3>
+            <div class="slider-container">
+                <label>Field of View</label>
+                <input type="range" id="fov" min="10" max="120" step="1" value="45">
+                <span class="slider-value">45</span>
+            </div>
+            <div class="button-group">
+                <button id="reset-camera">Reset Camera</button>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <h3>Effects</h3>
+            <div class="button-group">
+                <button id="toggle-shadows" class="active">Shadows</button>
+                <button id="toggle-grid">Grid</button>
+                <button id="toggle-wireframe">Wireframe</button>
+                <button id="toggle-autorotate">Auto Rotate</button>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <h3>Actions</h3>
+            <div class="button-group">
+                <button id="reset-all">Reset Settings</button>
+                <button id="export-model">Screenshot</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="toggle-controls">⚙️</div>
+    
+    <div id="model-info"></div>
+    
+    <div id="help-button">?</div>
+    
+    <div id="help-modal">
+        <div class="modal-content">
+            <span class="close-modal">×</span>
+            <h2>3D Model Viewer - Help</h2>
+            <p><strong>Navigation:</strong></p>
+            <ul>
+                <li><strong>Rotate:</strong> Left-click and drag</li>
+                <li><strong>Pan:</strong> Right-click and drag, or middle-click and drag</li>
+                <li><strong>Zoom:</strong> Mouse wheel, or pinch on touchscreen</li>
+            </ul>
+            <p><strong>Supported File Formats:</strong></p>
+            <ul>
+                <li><strong>OBJ:</strong> Wavefront Object format</li>
+                <li><strong>STL:</strong> Stereolithography format</li>
+                <li><strong>GLTF/GLB:</strong> GL Transmission Format</li>
+                <li><strong>PLY:</strong> Polygon File Format</li>
+                <li><strong>FBX:</strong> Filmbox Format</li>
+                <li><strong>3MF:</strong> 3D Manufacturing Format</li>
+                <li><strong>STEP/STP:</strong> Standard for Exchange of Product model data</li>
+            </ul>
+            <p><strong>Controls:</strong></p>
+            <ul>
+                <li><strong>Lighting:</strong> Adjust ambient and directional light intensity and color</li>
+                <li><strong>Material:</strong> Change the material type, color, metalness, roughness, and opacity</li>
+                <li><strong>Environment:</strong> Select between different environment presets</li>
+                <li><strong>Camera:</strong> Adjust field of view and reset camera position</li>
+                <li><strong>Effects:</strong> Toggle shadows, grid, wireframe, and auto-rotation</li>
+            </ul>
+            <p><strong>Tips:</strong></p>
+            <ul>
+                <li>On mobile devices, use the gear icon to toggle the controls panel</li>
+                <li>Large models may take time to load, please be patient</li>
+                <li>For better performance with complex models, disable shadows</li>
+                <li>The export button saves a screenshot of the current view</li>
+                <li>Reset All Settings will restore all controls to their default values</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div id="loading">
+        <div class="spinner"></div>
+        <p>Loading model...</p>
+    </div>
+    
+    <div class="notification" id="notification"></div>
+    
+    <script>
+        // Replace the existing OrbitControls class with this updated version
+        class OrbitControls {
+            constructor(camera, domElement) {
+                this.camera = camera;
+                this.domElement = domElement;
+                this.target = new THREE.Vector3();
+                this.enableDamping = false;
+                this.dampingFactor = 0.05;
+                this.enableZoom = true;
+                this.zoomSpeed = 1.0;
+                this.enableRotate = true;
+                this.rotateSpeed = 1.0;
+                this.enablePan = true;
+                this.panSpeed = 1.0;
+                
+                // Mouse positions
+                this.mouseButtons = { LEFT: 0, MIDDLE: 1, RIGHT: 2 };
+                this.mousePosition = new THREE.Vector2();
+                this.prevMousePosition = new THREE.Vector2();
+                
+                // State
+                this.state = null;
+                this.STATE = { NONE: -1, ROTATE: 0, ZOOM: 1, PAN: 2 };
+                
+                // Event listeners
+                this.domElement.addEventListener('contextmenu', this.onContextMenu.bind(this), false);
+                this.domElement.addEventListener('mousedown', this.onMouseDown.bind(this), false);
+                this.domElement.addEventListener('wheel', this.onMouseWheel.bind(this), false);
+                
+                // Initial update
+                this.update();
+            }
+            
+            onContextMenu(event) {
+                event.preventDefault();
+            }
+            
+            onMouseDown(event) {
+                event.preventDefault();
+                
+                switch (event.button) {
+                    case this.mouseButtons.LEFT:
+                        this.state = this.STATE.ROTATE;
+                        break;
+                    case this.mouseButtons.MIDDLE:
+                        this.state = this.STATE.ZOOM;
+                        break;
+                    case this.mouseButtons.RIGHT:
+                        this.state = this.STATE.PAN;
+                        break;
+                }
+                
+                this.mousePosition.set(event.clientX, event.clientY);
+                this.prevMousePosition.copy(this.mousePosition);
+                
+                document.addEventListener('mousemove', this.onMouseMove.bind(this), false);
+                document.addEventListener('mouseup', this.onMouseUp.bind(this), false);
+            }
+            
+            onMouseMove(event) {
+                this.mousePosition.set(event.clientX, event.clientY);
+                
+                const deltaX = (this.mousePosition.x - this.prevMousePosition.x) * 0.01;
+                const deltaY = (this.mousePosition.y - this.prevMousePosition.y) * 0.01;
+                
+                switch (this.state) {
+                    case this.STATE.ROTATE:
+                        this.rotateCamera(deltaX, deltaY);
+                        break;
+                    case this.STATE.ZOOM:
+                        this.zoomCamera(deltaY);
+                        break;
+                    case this.STATE.PAN:
+                        this.panCamera(deltaX, deltaY);
+                        break;
+                }
+                
+                this.prevMousePosition.copy(this.mousePosition);
+                this.update();
+            }
+            
+            onMouseUp() {
+                this.state = this.STATE.NONE;
+                
+                document.removeEventListener('mousemove', this.onMouseMove.bind(this));
+                document.removeEventListener('mouseup', this.onMouseUp.bind(this));
+            }
+            
+            onMouseWheel(event) {
+                event.preventDefault();
+                
+                const delta = Math.sign(event.deltaY);
+                this.zoomCamera(delta * 0.1);
+                this.update();
+            }
+            
+            rotateCamera(deltaX, deltaY) {
+                const position = this.camera.position;
+                position.sub(this.target);
+                
+                // Rotate horizontally
+                const rotationMatrix = new THREE.Matrix4();
+                rotationMatrix.makeRotationY(-deltaX * this.rotateSpeed);
+                position.applyMatrix4(rotationMatrix);
+                
+                // Rotate vertically
+                const right = new THREE.Vector3();
+                right.crossVectors(this.camera.up, position).normalize();
+                rotationMatrix.makeRotationAxis(right, -deltaY * this.rotateSpeed);
+                position.applyMatrix4(rotationMatrix);
+                
+                position.add(this.target);
+                this.camera.position.copy(position);
+            }
+            
+            zoomCamera(delta) {
+                const position = this.camera.position;
+                const direction = position.clone().sub(this.target).normalize();
+                const distance = position.distanceTo(this.target);
+                
+                // Adjust zoom speed based on distance
+                const zoomScale = Math.max(distance * 0.001, 0.1);
+                position.addScaledVector(direction, delta * this.zoomSpeed * zoomScale);
+            }
+            
+            panCamera(deltaX, deltaY) {
+                const position = this.camera.position;
+                const offset = new THREE.Vector3();
+                
+                // Calculate pan offset
+                offset.copy(position).sub(this.target);
+                const targetDistance = offset.length();
+                
+                // Adjust pan speed based on distance and FOV
+                const panScale = Math.max(targetDistance * Math.tan((this.camera.fov / 2) * Math.PI / 180.0), 0.1);
+                
+                offset.x = -deltaX * panScale * this.panSpeed;
+                offset.y = deltaY * panScale * this.panSpeed;
+                
+                // Apply pan in camera's local space
+                offset.applyQuaternion(this.camera.quaternion);
+                
+                position.add(offset);
+                this.target.add(offset);
+            }
+            
+            update() {
+                this.camera.lookAt(this.target);
+            }
+        }
+
+        // Add after OrbitControls class
+        let scene, camera, renderer, controls, model;
+        const container = document.getElementById('container');
+
+        // Initialize Three.js scene
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x2c3e50);
+
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 5;
+
+            // Renderer setup
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            // Controls setup
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(2, 2, 2);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize, false);
+
+            // Setup file upload handlers
+            setupFileUpload();
+
+            animate();
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Window resize handler
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // File upload setup
+        function setupFileUpload() {
+            const dragArea = document.getElementById('drag-area');
+            const fileInput = document.getElementById('file-input');
+            const status = document.getElementById('status');
+
+            // Handle drag and drop
+            dragArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dragArea.classList.add('active');
+            });
+
+            dragArea.addEventListener('dragleave', () => {
+                dragArea.classList.remove('active');
+            });
+
+            dragArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dragArea.classList.remove('active');
+                const file = e.dataTransfer.files[0];
+                handleFile(file);
+            });
+
+            // Handle click to upload
+            dragArea.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                handleFile(file);
+            });
+        }
+
+        // File handler
+        function handleFile(file) {
+            const loading = document.getElementById('loading');
+            loading.style.display = 'flex';
+
+            // Clear existing model
+            if (model) {
+                scene.remove(model);
+            }
+
+            // Load model based on file extension
+            const extension = file.name.split('.').pop().toLowerCase();
+            const reader = new FileReader();
+
+            reader.onload = function(event) {
+                const fileContent = event.target.result;
+
+                try {
+                    switch(extension) {
+                        case 'obj':
+                            const objLoader = new THREE.OBJLoader();
+                            const objBlob = new Blob([fileContent], { type: 'application/octet-stream' });
+                            const objUrl = URL.createObjectURL(objBlob);
+                            
+                            objLoader.load(objUrl, function(object) {
+                                handleLoadedModel(object);
+                                URL.revokeObjectURL(objUrl);
+                            }, undefined, function(error) {
+                                console.error(error);
+                                showNotification('Error loading OBJ model', 'error');
+                                loading.style.display = 'none';
+                            });
+                            break;
+
+                        case 'stl':
+                            const stlLoader = new THREE.STLLoader();
+                            const geometry = stlLoader.parse(fileContent);
+                            const material = new THREE.MeshPhongMaterial({
+                                color: 0x3498db,
+                                metalness: 0.1,
+                                roughness: 0.8,
+                            });
+                            const mesh = new THREE.Mesh(geometry, material);
+                            handleLoadedModel(mesh);
+                            break;
+
+                        case 'gltf':
+                        case 'glb':
+                            const gltfLoader = new THREE.GLTFLoader();
+                            const gltfBlob = new Blob([fileContent], { type: 'application/octet-stream' });
+                            const gltfUrl = URL.createObjectURL(gltfBlob);
+
+                            gltfLoader.load(gltfUrl, function(gltf) {
+                                handleLoadedModel(gltf.scene);
+                                URL.revokeObjectURL(gltfUrl);
+                            }, undefined, function(error) {
+                                console.error(error);
+                                showNotification('Error loading GLTF/GLB model', 'error');
+                                loading.style.display = 'none';
+                            });
+                            break;
+
+                        default:
+                            showNotification('Unsupported file format: ' + extension, 'error');
+                            loading.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error(error);
+                    showNotification('Error processing file', 'error');
+                    loading.style.display = 'none';
+                }
+            };
+
+            reader.onerror = function() {
+                showNotification('Error reading file', 'error');
+                loading.style.display = 'none';
+            };
+
+            if (extension === 'obj' || extension === 'stl' || extension === 'gltf' || extension === 'glb') {
+                reader.readAsArrayBuffer(file);
+            } else {
+                showNotification('Unsupported file format', 'error');
+                loading.style.display = 'none';
+            }
+        }
+
+        // Handle loaded model
+        function handleLoadedModel(object) {
+            try {
+                model = object;
+
+                // Apply default material if needed
+                model.traverse((child) => {
+                    if (child.isMesh) {
+                        if (!child.material) {
+                            child.material = new THREE.MeshPhongMaterial({
+                                color: 0x3498db,
+                                metalness: 0.1,
+                                roughness: 0.8,
+                            });
+                        }
+                        child.material.side = THREE.DoubleSide; // Show both sides of faces
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                    }
+                });
+
+                // Center and scale the model
+                const box = new THREE.Box3().setFromObject(model);
+                const center = box.getCenter(new THREE.Vector3());
+                const size = box.getSize(new THREE.Vector3());
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const fov = camera.fov * (Math.PI / 180);
+                const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+
+                model.position.sub(center); // Center the model
+                camera.position.z = cameraZ * 1.5;
+                controls.target.set(0, 0, 0);
+                camera.updateProjectionMatrix();
+                controls.update();
+
+                scene.add(model);
+                document.getElementById('loading').style.display = 'none';
+                showNotification('Model loaded successfully', 'success');
+
+                // Update model info
+                const modelInfo = document.getElementById('model-info');
+                if (modelInfo) {
+                    const vertexCount = countVertices(model);
+                    const faceCount = countFaces(model);
+                    modelInfo.innerHTML = `
+                        <h3>Model Info</h3>
+                        <p>Vertices: ${vertexCount}</p>
+                        <p>Faces: ${faceCount}</p>
+                        <p>File: ${model.userData.filename || 'Unknown'}</p>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error handling model:', error);
+                showNotification('Error processing model', 'error');
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        // Helper functions to count vertices and faces
+        function countVertices(object) {
+            let count = 0;
+            object.traverse((child) => {
+                if (child.isMesh) {
+                    count += child.geometry.attributes.position.count;
+                }
+            });
+            return count;
+        }
+
+        function countFaces(object) {
+            let count = 0;
+            object.traverse((child) => {
+                if (child.isMesh) {
+                    if (child.geometry.index) {
+                        count += child.geometry.index.count / 3;
+                    } else {
+                        count += child.geometry.attributes.position.count / 3;
+                    }
+                }
+            });
+            return Math.round(count);
+        }
+
+        // Show notification
+        function showNotification(message, type) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type} show`;
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // Add this code after the init() function
+        function setupControls() {
+            // Lighting controls
+            const ambientIntensity = document.getElementById('ambient-intensity');
+            const directionalIntensity = document.getElementById('directional-intensity');
+            const lightColor = document.getElementById('light-color');
+            
+            let ambientLight, directionalLight;
+            
+            ambientIntensity.addEventListener('input', (e) => {
+                if (!ambientLight) {
+                    ambientLight = scene.children.find(child => child instanceof THREE.AmbientLight);
+                }
+                ambientLight.intensity = parseFloat(e.target.value);
+                e.target.nextElementSibling.textContent = e.target.value;
+            });
+
+            directionalIntensity.addEventListener('input', (e) => {
+                if (!directionalLight) {
+                    directionalLight = scene.children.find(child => child instanceof THREE.DirectionalLight);
+                }
+                directionalLight.intensity = parseFloat(e.target.value);
+                e.target.nextElementSibling.textContent = e.target.value;
+            });
+
+            lightColor.addEventListener('input', (e) => {
+                if (!ambientLight || !directionalLight) {
+                    ambientLight = scene.children.find(child => child instanceof THREE.AmbientLight);
+                    directionalLight = scene.children.find(child => child instanceof THREE.DirectionalLight);
+                }
+                const color = new THREE.Color(e.target.value);
+                ambientLight.color = color;
+                directionalLight.color = color;
+            });
+
+            // Material controls
+            const materialType = document.getElementById('material-type');
+            const materialColor = document.getElementById('material-color');
+            const metalness = document.getElementById('metalness');
+            const roughness = document.getElementById('roughness');
+            const opacity = document.getElementById('opacity');
+
+            function updateMaterial() {
+                if (!model) return;
+
+                const color = new THREE.Color(materialColor.value);
+                const metallicValue = parseFloat(metalness.value);
+                const roughnessValue = parseFloat(roughness.value);
+                const opacityValue = parseFloat(opacity.value);
+
+                model.traverse((child) => {
+                    if (child.isMesh) {
+                        let material;
+                        switch (materialType.value) {
+                            case 'standard':
+                                material = new THREE.MeshStandardMaterial({
+                                    color: color,
+                                    metalness: metallicValue,
+                                    roughness: roughnessValue,
+                                    transparent: opacityValue < 1,
+                                    opacity: opacityValue
+                                });
+                                break;
+                            case 'phong':
+                                material = new THREE.MeshPhongMaterial({
+                                    color: color,
+                                    shininess: (1 - roughnessValue) * 100,
+                                    transparent: opacityValue < 1,
+                                    opacity: opacityValue
+                                });
+                                break;
+                            case 'basic':
+                                material = new THREE.MeshBasicMaterial({
+                                    color: color,
+                                    transparent: opacityValue < 1,
+                                    opacity: opacityValue
+                                });
+                                break;
+                            case 'normal':
+                                material = new THREE.MeshNormalMaterial({
+                                    transparent: opacityValue < 1,
+                                    opacity: opacityValue
+                                });
+                                break;
+                            case 'wireframe':
+                                material = new THREE.MeshBasicMaterial({
+                                    color: color,
+                                    wireframe: true,
+                                    transparent: opacityValue < 1,
+                                    opacity: opacityValue
+                                });
+                                break;
+                        }
+                        if (material) {
+                            child.material = material;
+                            child.material.needsUpdate = true;
+                        }
+                    }
+                });
+            }
+
+            materialType.addEventListener('change', updateMaterial);
+            materialColor.addEventListener('input', updateMaterial);
+            metalness.addEventListener('input', (e) => {
+                e.target.nextElementSibling.textContent = e.target.value;
+                updateMaterial();
+            });
+            roughness.addEventListener('input', (e) => {
+                e.target.nextElementSibling.textContent = e.target.value;
+                updateMaterial();
+            });
+            opacity.addEventListener('input', (e) => {
+                e.target.nextElementSibling.textContent = e.target.value;
+                updateMaterial();
+            });
+
+            // Camera controls
+            const fov = document.getElementById('fov');
+            const resetCamera = document.getElementById('reset-camera');
+
+            fov.addEventListener('input', (e) => {
+                camera.fov = parseFloat(e.target.value);
+                camera.updateProjectionMatrix();
+                e.target.nextElementSibling.textContent = e.target.value;
+            });
+
+            resetCamera.addEventListener('click', () => {
+                if (model) {
+                    const box = new THREE.Box3().setFromObject(model);
+                    const center = box.getCenter(new THREE.Vector3());
+                    const size = box.getSize(new THREE.Vector3());
+                    const maxDim = Math.max(size.x, size.y, size.z);
+                    const fov = camera.fov * (Math.PI / 180);
+                    const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+
+                    camera.position.set(0, 0, cameraZ * 1.5);
+                    controls.target.copy(center);
+                    camera.updateProjectionMatrix();
+                    controls.update();
+                }
+            });
+
+            // Effects controls
+            const toggleShadows = document.getElementById('toggle-shadows');
+            const toggleGrid = document.getElementById('toggle-grid');
+            const toggleWireframe = document.getElementById('toggle-wireframe');
+            const toggleAutorotate = document.getElementById('toggle-autorotate');
+
+            let grid = null;
+
+            toggleShadows.addEventListener('click', () => {
+                renderer.shadowMap.enabled = !renderer.shadowMap.enabled;
+                toggleShadows.classList.toggle('active');
+                if (model) {
+                    model.traverse((child) => {
+                        if (child.isMesh) {
+                            child.castShadow = renderer.shadowMap.enabled;
+                            child.receiveShadow = renderer.shadowMap.enabled;
+                        }
+                    });
+                }
+            });
+
+            toggleGrid.addEventListener('click', () => {
+                if (!grid) {
+                    grid = new THREE.GridHelper(10, 10);
+                    scene.add(grid);
+                }
+                grid.visible = !grid.visible;
+                toggleGrid.classList.toggle('active');
+            });
+
+            toggleWireframe.addEventListener('click', () => {
+                if (model) {
+                    model.traverse((child) => {
+                        if (child.isMesh) {
+                            child.material.wireframe = !child.material.wireframe;
+                        }
+                    });
+                }
+                toggleWireframe.classList.toggle('active');
+            });
+
+            let autoRotate = false;
+            toggleAutorotate.addEventListener('click', () => {
+                autoRotate = !autoRotate;
+                toggleAutorotate.classList.toggle('active');
+            });
+
+            // Add autoRotate to animation loop
+            function updateAutoRotate() {
+                if (autoRotate && model) {
+                    model.rotation.y += 0.01;
+                }
+            }
+            
+            // Update the animate function to include autoRotate
+            const originalAnimate = animate;
+            animate = function() {
+                updateAutoRotate();
+                originalAnimate();
+            };
+
+            // Add this inside the setupControls() function, after the existing controls
+            function setupEnvironmentControls() {
+                const environmentSelect = document.getElementById('environment');
+                const envIntensity = document.getElementById('env-intensity');
+                let envMap = null;
+
+                // Environment presets
+                const environments = {
+                    studio: {
+                        color: 0x808080,
+                        intensity: 1
+                    },
+                    sunset: {
+                        color: 0xffa07a,
+                        intensity: 1.2
+                    },
+                    dawn: {
+                        color: 0xe6d5ac,
+                        intensity: 0.8
+                    },
+                    night: {
+                        color: 0x152238,
+                        intensity: 0.5
+                    },
+                    neutral: {
+                        color: 0xffffff,
+                        intensity: 1
+                    }
+                };
+
+                function updateEnvironment() {
+                    const preset = environments[environmentSelect.value];
+                    if (!preset) return;
+
+                    // Update scene background
+                    scene.background = new THREE.Color(preset.color);
+
+                    // Update lighting
+                    const intensity = preset.intensity * parseFloat(envIntensity.value);
+                    
+                    // Update ambient light
+                    const ambientLight = scene.children.find(child => child instanceof THREE.AmbientLight);
+                    if (ambientLight) {
+                        ambientLight.intensity = intensity * 0.5;
+                    }
+
+                    // Update directional light
+                    const directionalLight = scene.children.find(child => child instanceof THREE.DirectionalLight);
+                    if (directionalLight) {
+                        directionalLight.intensity = intensity;
+                    }
+
+                    // Update materials if model exists
+                    if (model) {
+                        model.traverse((child) => {
+                            if (child.isMesh && child.material) {
+                                child.material.needsUpdate = true;
+                            }
+                        });
+                    }
+                }
+
+                // Environment type change
+                environmentSelect.addEventListener('change', updateEnvironment);
+
+                // Environment intensity change
+                envIntensity.addEventListener('input', (e) => {
+                    e.target.nextElementSibling.textContent = e.target.value;
+                    updateEnvironment();
+                });
+
+                // Initial environment setup
+                updateEnvironment();
+            }
+
+            // Call setupEnvironmentControls
+            setupEnvironmentControls();
+
+            // Add this at the end of setupControls() function
+            setupEnvironmentControls();
+        }
+
+        // Call setupControls after init()
+        init();
+        setupControls();
+    </script>
+</body>
+</html>
